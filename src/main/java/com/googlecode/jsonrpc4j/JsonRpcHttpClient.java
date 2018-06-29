@@ -6,16 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -155,16 +151,30 @@ public class JsonRpcHttpClient extends JsonRpcClient implements IJsonRpcClient {
 					throw new HttpException("Caught error with no response body.", e);
 				}
 
-				try (InputStream answer = getStream(connection.getErrorStream(), useGzip)) {
-					return super.readResponse(returnType, answer);
+				byte[] errorBytes = getErrorBytes(connection, useGzip);
+				try {
+					return super.readResponse(returnType, new ByteArrayInputStream(errorBytes));
 				} catch (IOException ef) {
-					throw new HttpException(readErrorString(connection), ef);
+					throw new HttpException(readErrorString(errorBytes), ef);
 				}
 			}
 		} finally {
 			connection.disconnect();
 		}
 		
+	}
+
+	private byte[] getErrorBytes(HttpURLConnection connection, boolean useGzip) throws IOException {
+		try (InputStream errorStream = getStream(connection.getErrorStream(), useGzip)) {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			byte[] buffer = new byte[1024];
+			int len;
+			while ((len = errorStream.read(buffer)) > -1) {
+				baos.write(buffer, 0, len);
+			}
+			baos.flush();
+			return baos.toByteArray();
+		}
 	}
 	
 	/**
@@ -221,10 +231,10 @@ public class JsonRpcHttpClient extends JsonRpcClient implements IJsonRpcClient {
 		return useGzip ? new GZIPInputStream(inputStream) : inputStream;
 	}
 	
-	private static String readErrorString(final HttpURLConnection connection) {
-		try (InputStream stream = connection.getErrorStream()) {
+	private static String readErrorString(byte[] errorBytes) {
+		try (InputStream stream = new ByteArrayInputStream(errorBytes)) {
 			StringBuilder buffer = new StringBuilder();
-			try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"))) {
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
 				for (int ch = reader.read(); ch >= 0; ch = reader.read()) {
 					buffer.append((char) ch);
 				}
