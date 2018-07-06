@@ -51,6 +51,11 @@ public abstract class BaseRestTest {
 		Map<String, String> header = new HashMap<>();
 		return new JsonRpcHttpClient(new ObjectMapper(), new URL(jettyServer.getCustomServerUrlString(JettyServer.SERVLET)), header, gzipRequests, acceptGzipResponses);
 	}
+
+	protected JsonRpcHttpClient getHttpClient(final String servlet) throws MalformedURLException {
+		Map<String, String> header = new HashMap<>();
+		return new JsonRpcHttpClient(new ObjectMapper(), new URL(jettyServer.getCustomServerUrlString(servlet)), header);
+	}
 	
 	@After
 	public void teardown() throws Exception {

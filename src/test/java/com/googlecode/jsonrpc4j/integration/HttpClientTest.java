@@ -36,8 +36,25 @@ public class HttpClientTest extends BaseRestTest {
 		int i = service.returnPrimitiveInt(2);
 		Assert.assertEquals(2, i);
 	}
-	
-	@Override
+
+	@Test
+	public void testErrorResponseChecking() throws MalformedURLException {
+		expectedEx.expectMessage("<html>\n" +
+				"<head>\n" +
+				"<meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\"/>\n" +
+				"<title>Error 405 HTTP method POST is not supported by this URL</title>\n" +
+				"</head>\n" +
+				"<body><h2>HTTP ERROR 405</h2>\n" +
+				"<p>Problem accessing /error. Reason:\n" +
+				"<pre>    HTTP method POST is not supported by this URL</pre></p><hr><a href=\"http://eclipse.org/jetty\">Powered by Jetty:// 9.4.0.RC3</a><hr/>\n" +
+				"\n" +
+				"</body>\n" +
+				"</html>\n");
+		service = ProxyUtil.createClientProxy(this.getClass().getClassLoader(), FakeServiceInterface.class, getHttpClient("error"));
+		service.doSomething();
+	}
+
+    @Override
 	protected Class service() {
 		return FakeServiceInterfaceImpl.class;
 	}
